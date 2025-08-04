@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>תפריט מבוסס מבט</title>
+  <script src="https://webgazer.cs.brown.edu/webgazer.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      direction: rtl;
+    }
+    #webgazerVideoFeed {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+    }
+    .gaze-button {
+      width: 220px;
+      height: 80px;
+      margin: 10px;
+      font-size: 20px;
+      border: 2px solid #444;
+      display: inline-block;
+      line-height: 80px;
+      background-color: #eee;
+      transition: background-color 0.2s;
+    }
+    .highlight {
+      background-color: yellow;
+    }
+    #menu {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 1000px;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+  <h2>בחרו מבט</h2>
+  <p id="output">מחכה למצלמה...</p>
+
+  <div id="menu"></div>
+
+  <script>
+    const menus = [
+      ["שלום", "אני רעבה", "רוצה חיבוק", "שמחה", "אני עייפה", "מוזיקה", "גלידה", "כואב לי", "שירותים", "כן", "לא", "מים"],
+      ["אימא", "אבא", "רוצה לצאת", "אני עצובה", "משעמם לי", "ספר", "טלוויזיה", "שיר", "עוד פעם", "לבד", "אני אוהבת אותך", "לעצור"]
+    ];
+
+    let currentMenu = 0;
+    let lastFocus = "";
+    let dwellTime = 0;
+    const dwellThreshold = 30;
+
+    function renderMenu(index) {
+      const menu = document.getElementById("menu");
+      menu.innerHTML = "";
+
+      menus[index].forEach((text, i) => {
+        const div = document.createElement("div");
+        div.className = "gaze-button";
+        div.id = "btn" + i;
+        div.innerText = text;
+        menu.appendChild(div);
+      });
+
+      // כפתור קודם
+      const back = document.createElement("div");
+      back.className = "gaze-button";
+      back.id = "backBtn";
+      back.innerText = "⬅ תפריט קודם";
+      menu.appendChild(back);
+
+      // כפתור הבא
+      const next = document.createElement("div");
+      next.className = "gaze-button";
+      next.id = "nextBtn";
+      next.innerText = "➡ תפריט הבא";
+      menu.appendChild(next);
+    }
+
+    function checkGazeFocus(x, y) {
+      const elements = document.querySelectorAll('.gaze-button');
+      elements.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+          el.classList.add("highlight");
+          if (lastFocus === el.id) {
+            dwellTime++;
+            if (dwellTime === dwellThreshold) {
+              if (el.id === "nextBtn") {
+                currentMenu = (currentMenu + 1) % menus.length;
+                renderMenu(currentMenu);
+              } else if (el.id === "backBtn") {
+                currentMenu = (currentMenu - 1 + menus.length) % menus.length;
+                renderMenu(currentMenu);
+              } else {
+                alert(`בחרת: ${el.innerText}`);
+              }
+              dwellTime = 0;
+              lastFocus = "";
+            }
+          } else {
+            lastFocus = el.id;
+            dwellTime = 0;
+          }
+        } else {
+          el.classList.remove("highlight");
+        }
+      });
+    }
+
+    window.onload = async function () {
+      renderMenu(currentMenu);
+      await webgazer.setGazeListener((data) => {
+        if (data) {
+          document.getElementById("output").innerText =
+            `מבט: x = ${Math.round(data.x)}, y = ${Math.round(data.y)}`;
+          checkGazeFocus(data.x, data.y);
+        }
+      }).begin();
+
+      webgazer.showVideoPreview(true);
+      webgazer.showPredictionPoints(true);
+      webgazer.applyKalmanFilter(true);
+    };
+  </script>
+</body>
+</html>
